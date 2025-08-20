@@ -5,6 +5,7 @@ import TrashItem from '../models/TrashItem.js';
 import Expedition from '../models/Expedition.js';
 import Destination from '../models/Destination.js';
 import Colis from '../models/Colis.js';
+import User from '../models/userModel.js';
 
 export const getManagerInbox = async (req, res) => {
   try {
@@ -15,6 +16,7 @@ export const getManagerInbox = async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
+
 export const addToManagerInbox = async (req, res) => {
   try {
     const newItem = new ManagerInbox(req.body);
@@ -31,7 +33,8 @@ export const getPendingOrders = async (req, res) => {
     const orders = await Commande.find({ status: 'En attente' })
       .populate('expedition')
       .populate('destination')
-      .populate('colis');
+      .populate('colis')
+      .populate('userId');
       
     res.json(orders);
   } catch (error) {
@@ -39,6 +42,7 @@ export const getPendingOrders = async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
+
 export const validateOrder = async (req, res) => {
   try {
     const { id } = req.params;
@@ -51,35 +55,71 @@ export const validateOrder = async (req, res) => {
       });
     }
 
-    // Mettre à jour la commande
-    const commande = await Commande.findByIdAndUpdate(
-      id,
-      { 
-        status: "Confirmée",
-        prix: price,
-        "paiement.montant": price,
-        "paiement.mode": "espèces"
-      },
-      { new: true }
-    );
+    // Récupérer la commande avec les données liées
+    const commande = await Commande.findById(id)
+      .populate('expedition')
+      .populate('destination')
+      .populate('colis')
+      .populate('userId');
 
     if (!commande) {
       return res.status(404).json({ error: "Commande non trouvée" });
     }
 
-    // Récupérer les détails nécessaires
-    const expedition = await Expedition.findById(commande.expedition);
+    // Si la commande a un utilisateur associé, vérifier et compléter les champs manquants
+    if (commande.userId) {
+      let needsUpdate = false;
+      
+      if (!commande.userId.fullName) {
+        commande.userId.fullName = "Client inconnu";
+        needsUpdate = true;
+      }
+      
+      if (!commande.userId.phone) {
+        commande.userId.phone = "Non spécifié";
+        needsUpdate = true;
+      }
+      
+      if (!commande.userId.role) {
+        commande.userId.role = "client";
+        needsUpdate = true;
+      }
+      
+      // Sauvegarder les modifications si nécessaire
+      if (needsUpdate) {
+        await commande.userId.save();
+      }
+    }
+
+    // Mettre à jour la commande
+    commande.status = "Confirmée";
+    commande.prix = price;
+    commande.paiement = {
+      prixLivraison: price,
+      mode: "espèces",
+      status: "Validée",
+      dateValidation: new Date()
+    };
     
+    await commande.save();
+
+    // Déterminer le nom du client
+    const clientName = commande.expedition?.nomComplet || 
+                      (commande.userId ? commande.userId.fullName : "Client inconnu");
+
     // Ajouter à l'historique
     const inboxItem = new ManagerInbox({
       type: 'commande',
       action: 'validation',
       commandeId: commande.commandeId,
-      client: expedition?.nomComplet || "Client inconnu",
+      client: clientName,
       date: new Date(),
       details: `Commande validée - Prix: ${price} FCFA`,
       status: 'done',
-      price
+      price: price,
+      expediteur: commande.expedition?.nomComplet || "Non spécifié",
+      destinataire: commande.destination?.nomComplet || "Non spécifié",
+      detailsColis: `${commande.colis?.description || ''} (${commande.colis?.type || ''})`
     });
     
     await inboxItem.save();
@@ -92,9 +132,19 @@ export const validateOrder = async (req, res) => {
 
   } catch (error) {
     console.error("Erreur validation commande:", error);
+    
+    // Gestion d'erreur détaillée
+    let errorMessage = "Erreur serveur lors de la validation";
+    
+    if (error.name === 'ValidationError') {
+      errorMessage = "Erreur de validation des données";
+    } else if (error.name === 'CastError') {
+      errorMessage = "ID de commande invalide";
+    }
+    
     res.status(500).json({
-      error: "Erreur serveur",
-      details: error.message
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -131,7 +181,7 @@ export const updateOrder = async (req, res) => {
       type: 'commande',
       action: 'modification',
       commandeId: updatedCommande.commandeId,
-      client: updatedCommande.expedition.nomComplet,
+      client: updatedCommande.expedition?.nomComplet || "Client inconnu",
       date: new Date(),
       details: `Commande modifiée - ${Object.keys(changes).length} changement(s)`,
       changes: changes
@@ -153,6 +203,14 @@ export const cancelOrder = async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
     
+    const commande = await Commande.findById(id)
+      .populate('expedition')
+      .populate('destination');
+    
+    if (!commande) {
+      return res.status(404).json({ error: 'Commande non trouvée' });
+    }
+    
     const updatedCommande = await Commande.findByIdAndUpdate(
       id,
       { 
@@ -161,19 +219,13 @@ export const cancelOrder = async (req, res) => {
         annulationReason: reason
       },
       { new: true }
-    )
-      .populate('expedition')
-      .populate('destination');
-    
-    if (!updatedCommande) {
-      return res.status(404).json({ error: 'Commande non trouvée' });
-    }
+    );
     
     const inboxItem = new ManagerInbox({
       type: 'commande',
       action: 'annulation',
       commandeId: updatedCommande.commandeId,
-      client: updatedCommande.expedition.nomComplet,
+      client: commande.expedition?.nomComplet || "Client inconnu",
       date: new Date(),
       details: `Commande annulée - Motif: ${reason || 'Non spécifié'}`
     });
@@ -266,4 +318,3 @@ export const moveToTrash = async (req, res) => {
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
-

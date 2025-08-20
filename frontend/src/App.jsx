@@ -1,11 +1,16 @@
-
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import Navbar from "./components/Navbar/Navbar";
 import Rapide from "./components/Rapide/Rapide";
-import AuthModal from './components/Navbar/AuthModal';
-import EspaceClient from './components/Rapide/EspaceClient';
-import ManagerDashboard from './components/Manager/ManagerDashboard';
+import AuthModal from "./components/Navbar/AuthModal";
+import EspaceClient from "./components/Rapide/EspaceClient";
+import ManagerDashboard from "./components/Manager/ManagerDashboard";
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -16,31 +21,31 @@ function AppContent() {
   const location = useLocation();
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userData");
     setIsLoggedIn(false);
     setUserData(null);
-    navigate('/');
+    navigate("/");
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    const storedUser = localStorage.getItem('userData');
-    
+    const token = localStorage.getItem("authToken");
+    const storedUser = localStorage.getItem("userData");
+
     if (token && storedUser) {
       try {
         const user = JSON.parse(storedUser);
         if (user && user._id) {
           setIsLoggedIn(true);
           setUserData(user);
-          
+
           // Redirection basée sur le rôle
-          if (user.role === 'admin') {
-            navigate('/admin'); // Redirection admin
-          } else if (user.role === 'manager') {
-            navigate('/manager');
+          if (user.role === "admin") {
+            navigate("/admin"); // Redirection admin
+          } else if (user.role === "manager") {
+            navigate("/manager");
           } else {
-            navigate('/espace-client');
+            navigate("/espace-client");
           }
         }
       } catch (e) {
@@ -51,19 +56,19 @@ function AppContent() {
   }, [navigate]);
 
   const handleLoginSuccess = (user) => {
-    localStorage.setItem('authToken', user.token);
-    localStorage.setItem('userData', JSON.stringify(user));
+    localStorage.setItem("authToken", user.token);
+    localStorage.setItem("userData", JSON.stringify(user));
     setUserData(user);
     setIsLoggedIn(true);
     setShowAuthModal(false);
-    
+
     // Redirection après connexion
-    if (user.role === 'admin') {
-      navigate('/admin'); // Redirection admin
-    } else if (user.role === 'manager') {
-      navigate('/manager');
+    if (user.role === "admin") {
+      navigate("/admin"); // Redirection admin
+    } else if (user.role === "manager") {
+      navigate("/manager");
     } else {
-      navigate('/espace-client');
+      navigate("/espace-client");
     }
   };
 
@@ -72,31 +77,41 @@ function AppContent() {
     setShowAuthModal(true);
   };
 
-  const hideNavbar = location.pathname === '/espace-client' || 
-                     location.pathname.startsWith('/manager') ||
-                     location.pathname.startsWith('/admin'); // Ajout de /admin
+  const hideNavbar =
+    location.pathname === "/espace-client" ||
+    location.pathname.startsWith("/manager") ||
+    location.pathname.startsWith("/admin"); // Ajout de /admin
 
   return (
     <div>
       {!hideNavbar && (
-        <Navbar 
-          isLoggedIn={isLoggedIn} 
+        <Navbar
+          isLoggedIn={isLoggedIn}
           onLoginClick={handleOpenAuthModal}
           onLogout={handleLogout}
         />
       )}
-      
+
       <Routes>
-        <Route path="/manager" element={<ManagerDashboard onLogout={handleLogout}/>}/>
-        <Route path="/espace-client" element={<EspaceClient user={userData} onLogout={handleLogout}/>} />
-        <Route path="/" element={
-          <>
-            <Rapide onLoginClick={handleOpenAuthModal} />
-          </>
-        } />
+        <Route
+          path="/manager"
+          element={<ManagerDashboard onLogout={handleLogout} />}
+        />
+        <Route
+          path="/espace-client"
+          element={<EspaceClient user={userData} onLogout={handleLogout} />}
+        />
+        <Route
+          path="/"
+          element={
+            <>
+              <Rapide onLoginClick={handleOpenAuthModal} user={userData} />
+            </>
+          }
+        />
       </Routes>
-      
-      <AuthModal 
+
+      <AuthModal
         showModal={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         isNewUser={authModalType}

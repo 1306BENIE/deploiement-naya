@@ -1,33 +1,17 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  motion, 
-  AnimatePresence 
-} from 'framer-motion';
-import { 
-  FaTimes,
-  FaCheck,
-  FaMoneyCheckAlt,
-  FaMapMarkerAlt,
-  FaUserTie,
-  FaInbox,
-  FaBox,
-  FaBell,
-  FaChevronDown,
-  FaUserCircle,
-  FaInfoCircle,
-  FaTrash,
-  FaTrashRestore,
-  FaSync,
-  FaClock
+  FaTimes, FaCheck, FaMoneyCheckAlt, FaMapMarkerAlt, FaUserTie, 
+  FaInbox, FaBox, FaBell, FaChevronDown, FaUserCircle, FaInfoCircle, 
+  FaTrash, FaTrashRestore, FaSync, FaClock 
 } from 'react-icons/fa';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useNavigate } from 'react-router-dom';
 
 const API_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000') + '/api/manager';
 
+// Configuration d'Axios pour inclure le token d'authentification
 axios.interceptors.request.use(config => {
   const token = localStorage.getItem('authToken');
   if (token) {
@@ -56,7 +40,6 @@ const ManagerDashboard = ({ onLogout }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedInboxItem, setSelectedInboxItem] = useState(null);
   
-  const navigate = useNavigate();
   const notificationSound = useRef(null);
   
   useEffect(() => {
@@ -116,7 +99,9 @@ const ManagerDashboard = ({ onLogout }) => {
         playNotificationSound();
       }
     } catch (err) {
+      console.error("Erreur récupération commandes:", err);
       setError('Erreur de chargement des commandes');
+      toast.error("Erreur lors du chargement des commandes");
     } finally {
       setLoading(false);
     }
@@ -137,7 +122,9 @@ const ManagerDashboard = ({ onLogout }) => {
         playNotificationSound();
       }
     } catch (err) {
+      console.error("Erreur récupération inbox:", err);
       setError('Erreur de chargement de la boîte de réception');
+      toast.error("Erreur lors du chargement de la boîte de réception");
     } finally {
       setLoading(false);
     }
@@ -208,26 +195,29 @@ const ManagerDashboard = ({ onLogout }) => {
       fetchInbox();
       showSuccessToast("Commande annulée avec succès!");
     } catch (err) {
+      console.error("Erreur annulation commande:", err);
       setError('Erreur lors de l\'annulation de la commande');
+      toast.error("Erreur lors de l'annulation de la commande");
     } finally {
       setLoading(false);
     }
   };
+
   const validateOrderWithPrice = async (orderId) => {
     const price = customPrices[orderId];
     
-    // Validation améliorée
     if (!price || isNaN(price) || Number(price) <= 500) {
       toast.error("Prix invalide! Minimum 500 FCFA");
       return;
     }
+    
     setLoading(true);
     try {
       const response = await axios.patch(
         `${API_URL}/orders/${orderId}/validate`, 
         { price: Number(price) }
       );
-
+  
       // Mise à jour optimiste de l'UI
       setPendingOrders(prev => prev.filter(order => order._id !== orderId));
       setPendingOrdersCount(prev => prev - 1);
@@ -240,18 +230,24 @@ const ManagerDashboard = ({ onLogout }) => {
       fetchInbox();
       
     } catch (err) {
-      console.error("Validation error:", err.response?.data || err.message);
+      console.error("Validation error:", err);
       
       // Gestion d'erreur détaillée
-      const errorMsg = err.response?.data?.error || 
-                      "Erreur lors de la validation. Veuillez réessayer.";
+      let errorMsg = "Erreur lors de la validation";
+      
+      if (err.response?.data?.error) {
+        errorMsg = err.response.data.error;
+      } 
+      
+      if (err.response?.data?.details) {
+        errorMsg += `: ${err.response.data.details}`;
+      }
       
       toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
   };
-
   const moveToTrash = async (item, type) => {
     if (!window.confirm(`Déplacer dans la corbeille ?`)) return;
     
@@ -288,6 +284,7 @@ const ManagerDashboard = ({ onLogout }) => {
       fetchAllData(); 
       showSuccessToast("Élément restauré avec succès!");
     } catch (err) {
+      console.error("Erreur restauration:", err);
       setError("Erreur lors de la restauration");
       toast.error("Erreur lors de la restauration");
     } finally {
@@ -304,6 +301,7 @@ const ManagerDashboard = ({ onLogout }) => {
       setTrashItems([]);
       showSuccessToast("Corbeille vidée avec succès!");
     } catch (err) {
+      console.error("Erreur vidage corbeille:", err);
       setError("Erreur lors de la suppression définitive");
       toast.error("Erreur lors de la suppression définitive");
     } finally {
@@ -333,6 +331,7 @@ const ManagerDashboard = ({ onLogout }) => {
       return "Date invalide";
     }
   };
+
   useEffect(() => {
     if (activeTab === 'pending') {
       fetchPendingOrders();
@@ -367,7 +366,7 @@ const ManagerDashboard = ({ onLogout }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-screen bg-gradient-to-b from-gray-50 to-gray-100"
+      className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100"
     >
       <ToastContainer />
       
@@ -1033,15 +1032,13 @@ const ManagerDashboard = ({ onLogout }) => {
                       
                       <div className="mb-3">
                         <div className="font-medium">Poids:</div>
-                        <div>{selectedOrder.colis?.poids || 'Non spécifié'}</div>
+                        <div>{selectedOrder.colis?.poids || 'Non spécifié'} kg</div>
                       </div>
                       
                       <div className="mb-3">
                         <div className="font-medium">Dimensions:</div>
                         <div>
-                          {selectedOrder.colis?.dimensions?.longueur || '0'} x 
-                          {selectedOrder.colis?.dimensions?.largeur || '0'} x 
-                          {selectedOrder.colis?.dimensions?.hauteur || '0'} cm
+                          {selectedOrder.colis?.dimensions || 'Non spécifié'}
                         </div>
                       </div>
                     </div>
@@ -1093,6 +1090,7 @@ const ManagerDashboard = ({ onLogout }) => {
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       placeholder="Prix en FCFA"
                     />
+                    <span className="text-gray-500">FCFA</span>
                   </div>
                 </div>
                 
@@ -1265,6 +1263,5 @@ const ManagerDashboard = ({ onLogout }) => {
     </motion.div>
   );
 };
+
 export default ManagerDashboard;
-
-

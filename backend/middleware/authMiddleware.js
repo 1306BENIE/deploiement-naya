@@ -23,7 +23,6 @@ export const adminProtect = async (req, res, next) => {
     res.status(401).json({ message: "Token invalide" });
   }
 };
-// Middleware pour manager
 export const managerProtect = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -49,17 +48,9 @@ export const managerProtect = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Erreur vérification manager:', error);
-    
-    let message = "Erreur d'authentification";
-    if (error.name === 'JsonWebTokenError') {
-      message = "Token invalide";
-    } else if (error.name === 'TokenExpiredError') {
-      message = "Token expiré";
-    }
-
     res.status(401).json({
       success: false,
-      message
+      message: "Token invalide ou expiré"
     });
   }
 };

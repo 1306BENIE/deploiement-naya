@@ -37,10 +37,6 @@ const commandeSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  acceptCGU: {
-    type: Boolean,
-    required: [true, "L'acceptation des CGU est obligatoire"]
-  },
   paiement: {
     mode: {
       type: String,
@@ -51,13 +47,18 @@ const commandeSchema = new mongoose.Schema({
       enum: ['En attente', 'Validée', 'Annulée', 'Livrée'],
       default: 'En attente'
     },
+    montant: Number,
+    dateValidation: Date
+  },
+    acceptCGU: {
+      type: Boolean,
+      required: [true, "L'acceptation des CGU est obligatoire"]
+    },
     prixLivraison: Number,
     dateValidation: Date,
     dateAnnulation: Date,
     transactionId: String
-  }
-},
-
+  },
 {
   timestamps: true,
   versionKey: false
