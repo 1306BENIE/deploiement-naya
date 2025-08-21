@@ -65,6 +65,8 @@ const connectDB = async () => {
 const allowedOrigins = [
   process.env.FRONTEND_URL || "http://localhost:5173",
   "http://localhost:3000",
+  "https://deploiement-naya.vercel.app",
+  "https://votre-backend-render.onrender.com",
 ];
 
 const corsOptions = {
@@ -524,11 +526,9 @@ app.get("/api/calculate-delivery-price", async (req, res) => {
   const { origin, destination } = req.query;
 
   if (!origin || !destination) {
-    return res
-      .status(400)
-      .json({
-        error: "Les adresses d'origine et de destination sont requises",
-      });
+    return res.status(400).json({
+      error: "Les adresses d'origine et de destination sont requises",
+    });
   }
 
   try {
