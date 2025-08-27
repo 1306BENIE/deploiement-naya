@@ -1,6 +1,4 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  "https://votre-backend-render.onrender.com";
+const API_BASE_URL = "https://deploiement-naya.onrender.com";
 
 export const formatPhoneNumber = (phone) => {
   if (!phone) return "";

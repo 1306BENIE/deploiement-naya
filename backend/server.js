@@ -66,6 +66,7 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || "http://localhost:5173",
   "http://localhost:3000",
   "https://deploiement-naya.vercel.app",
+  "https://update-naya.vercel.app",
   "https://votre-backend-render.onrender.com",
 ];
 
